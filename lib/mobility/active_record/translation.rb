@@ -4,10 +4,10 @@ module Mobility
     class Translation < ::ActiveRecord::Base
       self.abstract_class = true
 
-      belongs_to :translatable, polymorphic: true, touch: true
+      belongs_to :record, polymorphic: true, touch: true
 
-      validates :key, presence: true, uniqueness: { scope: [:translatable_id, :translatable_type, :locale], case_sensitive: true }
-      validates :translatable, presence: true
+      validates :name, presence: true, uniqueness: { scope: [:record_id, :record_type, :locale], case_sensitive: true }
+      validates :record, presence: true
       validates :locale, presence: true
     end
   end

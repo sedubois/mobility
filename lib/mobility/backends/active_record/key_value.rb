@@ -51,7 +51,7 @@ Implements the {Mobility::Backends::KeyValue} backend for ActiveRecord models.
         #   translation table value column
         def build_node(attr, locale)
           aliased_table = class_name.arel_table.alias(table_alias(attr, locale))
-          Arel::Attribute.new(aliased_table, :value, locale, self, attribute_name: attr.to_sym)
+          Arel::Attribute.new(aliased_table, :body, locale, self, attribute_name: attr.to_sym)
         end
 
         # Joins translations using either INNER/OUTER join appropriate to the query.
@@ -75,10 +75,10 @@ Implements the {Mobility::Backends::KeyValue} backend for ActiveRecord models.
           m = model_class.arel_table
           t = class_name.arel_table.alias(table_alias(key, locale))
           relation.joins(m.join(t, join_type).
-                         on(t[:key].eq(key).
+                         on(t[:name].eq(key).
                             and(t[:locale].eq(locale).
-                                and(t[:translatable_type].eq(model_class.base_class.name).
-                                    and(t[:translatable_id].eq(m[:id]))))).join_sources)
+                                and(t[:record_type].eq(model_class.base_class.name).
+                                    and(t[:record_id].eq(m[:id]))))).join_sources)
         end
 
         def already_joined?(relation, name, locale, join_type)
@@ -165,13 +165,13 @@ Implements the {Mobility::Backends::KeyValue} backend for ActiveRecord models.
         association_attributes = (instance_variable_get(:"@#{attrs_method_name}") || []) + attributes
         instance_variable_set(:"@#{attrs_method_name}", association_attributes)
 
-        has_many association_name, ->{ where key: association_attributes },
-          as: :translatable,
+        has_many association_name, ->{ where name: association_attributes },
+          as: :record,
           class_name: translations_class.name,
-          inverse_of: :translatable,
+          inverse_of: :record,
           autosave:   true
         before_save do
-          send(association_name).select { |t| t.value.blank? }.each do |translation|
+          send(association_name).select { |t| t.body.blank? }.each do |translation|
             send(association_name).destroy(translation)
           end
         end
@@ -183,7 +183,7 @@ Implements the {Mobility::Backends::KeyValue} backend for ActiveRecord models.
               super(source)
               self.send("#{association_name}=", source.send(association_name).map(&:dup))
               # Set inverse on associations
-              send(association_name).each { |translation| translation.translatable = self }
+              send(association_name).each { |translation| translation.record = self }
             end
           end
           include const_set(module_name, callback_methods)
@@ -196,8 +196,8 @@ Implements the {Mobility::Backends::KeyValue} backend for ActiveRecord models.
       # @param [Symbol] locale
       # @return [Mobility::ActiveRecord::TextTranslation,Mobility::ActiveRecord::StringTranslation]
       def translation_for(locale, _options = {})
-        translation = translations.find { |t| t.key == attribute && t.locale == locale.to_s }
-        translation ||= translations.build(locale: locale, key: attribute)
+        translation = translations.find { |t| t.name == attribute && t.locale == locale.to_s }
+        translation ||= translations.build(locale: locale, name: attribute)
         translation
       end
 
@@ -206,7 +206,7 @@ Implements the {Mobility::Backends::KeyValue} backend for ActiveRecord models.
           model_class.after_destroy do
             [:string, :text].each do |type|
               Mobility::ActiveRecord.const_get("#{type.capitalize}Translation").
-                where(translatable: self).destroy_all
+                where(record: self).destroy_all
             end
           end
         end

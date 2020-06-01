@@ -34,7 +34,7 @@ To use the validator, you must +extend Mobility+ before calling +validates+
 
           if relation.exists?
             error_options = options.except(:case_sensitive, :scope, :conditions)
-            error_options[:value] = value
+            error_options[:body] = value
 
             record.errors.add(attribute, :taken, error_options)
           end
